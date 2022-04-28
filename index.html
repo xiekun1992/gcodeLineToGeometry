@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <script src="./three.min.js"></script>
+    <script src="./OrbitControls.js"></script>
+    <script>
+    function lineToGeometry(line) {
+        if (line.length < 2) {
+            return
+        }
+        const yUp = new THREE.Vector3(0, 1, 0), yDown = new THREE.Vector3(0, -1, 0)
+        const vertices = [], indices = []
+        const layerHeight = 10;
+        const lineWidth = 16;
+        
+        let currentIndex = 0
+        for (let i = 0; i < line.length; i += 2) {
+            const pointStart = line[i]
+            const pointEnd = line[i + 1]
+            const lineSegmentVector = new THREE.Vector3(pointStart.x - pointEnd.x, pointStart.y - pointEnd.y, pointStart.z - pointEnd.z)
+
+            // point start expanded 4 points
+            const down = new THREE.Vector3(pointStart.x, pointStart.y - layerHeight / 2, pointStart.z)
+            const up = new THREE.Vector3(pointStart.x, pointStart.y + layerHeight / 2, pointStart.z)
+            const left = new THREE.Vector3().crossVectors(up, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            const right = new THREE.Vector3().crossVectors(down, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+
+            // same as CSS top right down left
+            vertices.push(...up.toArray())
+            vertices.push(...right.toArray())
+            vertices.push(...down.toArray())
+            vertices.push(...left.toArray())
+
+            // point end expanded 4 points
+            const down1 = new THREE.Vector3(pointEnd.x, pointEnd.y - layerHeight / 2, pointEnd.z)
+            const up1 = new THREE.Vector3(pointEnd.x, pointEnd.y + layerHeight / 2, pointEnd.z)
+            const left1 = new THREE.Vector3().crossVectors(up1, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            const right1 = new THREE.Vector3().crossVectors(down1, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+
+            vertices.push(...up1.toArray())
+            vertices.push(...right1.toArray())
+            vertices.push(...down1.toArray())
+            vertices.push(...left1.toArray())
+
+            indices.push(...[
+                3, 0, 7, 0, 4, 7,
+                0, 1, 4, 1, 5, 4,
+                1, 2, 5, 2, 6, 5,
+                2, 3, 6, 3, 7, 6
+            ].map(index => index + currentIndex))
+
+            currentIndex += 8
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setIndex(indices);
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.computeVertexNormals()
+        console.log(vertices, indices, geometry)
+        return geometry
+    }
+    </script>
+    <script>
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    document.body.appendChild( renderer.domElement );
+
+    const camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 5000 );
+    camera.position.set( 0, 100, 100 );
+    camera.lookAt( 0, 0, 0 );
+    const amlight = new THREE.AmbientLight(0x777777)
+    const light = new THREE.DirectionalLight(0xffffff)
+    light.position.set(0, 300, 300)
+
+    const scene = new THREE.Scene();
+    scene.add(light)
+    scene.add(amlight)
+
+    const controls = new THREE.OrbitControls( camera, renderer.domElement );
+    controls.target.set( 0, 1, 0 );
+
+    const line = [
+        new THREE.Vector3(-10, 0, -10),
+        new THREE.Vector3(0, 0, 0),
+        // new THREE.Vector3(10, 0, -10),
+    ]
+    const box = lineToGeometry(line)
+    // const box = new THREE.BoxGeometry(10, 10, 10)
+    const mesh = new THREE.Mesh(box, new THREE.MeshPhongMaterial({ color: 0xff0000, side: THREE.DoubleSide }))
+    scene.add(mesh)
+
+    function render() {
+        requestAnimationFrame(render)
+        renderer.render(scene, camera);
+        controls.update();
+    }
+    render()
+    </script>
+</body>
+</html>
