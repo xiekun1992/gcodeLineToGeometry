@@ -21,20 +21,22 @@
         }
         const yUp = new THREE.Vector3(0, 1, 0), yDown = new THREE.Vector3(0, -1, 0)
         const vertices = [], indices = []
-        const layerHeight = 10;
-        const lineWidth = 16;
+        const layerHeight = 3;
+        const lineWidth = 4;
         
         let currentIndex = 0
         for (let i = 0; i < line.length; i += 2) {
             const pointStart = line[i]
             const pointEnd = line[i + 1]
-            const lineSegmentVector = new THREE.Vector3(pointStart.x - pointEnd.x, pointStart.y - pointEnd.y, pointStart.z - pointEnd.z)
+            const lineSegmentVector = new THREE.Vector3().subVectors(pointEnd, pointStart)
 
             // point start expanded 4 points
             const down = new THREE.Vector3(pointStart.x, pointStart.y - layerHeight / 2, pointStart.z)
             const up = new THREE.Vector3(pointStart.x, pointStart.y + layerHeight / 2, pointStart.z)
-            const left = new THREE.Vector3().crossVectors(up, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
-            const right = new THREE.Vector3().crossVectors(down, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            const leftN = new THREE.Vector3().crossVectors(yUp, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            const left = new THREE.Vector3(leftN.x + pointStart.x, leftN.y + pointStart.y, leftN.z + pointStart.z)
+            const rightN = new THREE.Vector3().crossVectors(yDown, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            const right = new THREE.Vector3(rightN.x + pointStart.x, rightN.y + pointStart.y, rightN.z + pointStart.z)
 
             // same as CSS top right down left
             vertices.push(...up.toArray())
@@ -45,14 +47,32 @@
             // point end expanded 4 points
             const down1 = new THREE.Vector3(pointEnd.x, pointEnd.y - layerHeight / 2, pointEnd.z)
             const up1 = new THREE.Vector3(pointEnd.x, pointEnd.y + layerHeight / 2, pointEnd.z)
-            const left1 = new THREE.Vector3().crossVectors(up1, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
-            const right1 = new THREE.Vector3().crossVectors(down1, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            // const left1 = new THREE.Vector3().crossVectors(up1, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            // const right1 = new THREE.Vector3().crossVectors(down1, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            const left1N = new THREE.Vector3().crossVectors(yUp, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            const left1 = new THREE.Vector3(left1N.x + pointEnd.x, left1N.y + pointEnd.y, left1N.z + pointEnd.z)
+            const right1N = new THREE.Vector3().crossVectors(yDown, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
+            const right1 = new THREE.Vector3(right1N.x + pointEnd.x, right1N.y + pointEnd.y, right1N.z + pointEnd.z)
 
             vertices.push(...up1.toArray())
             vertices.push(...right1.toArray())
             vertices.push(...down1.toArray())
             vertices.push(...left1.toArray())
 
+            // 封闭起点和终点的竖截面
+            if (i === 0) {
+                indices.push(...[
+                    0, 2, 1, 0, 3, 2,
+                ].map(index => index + currentIndex))
+            } else if (i + 1 === line.length - 1) {
+                indices.push(...[
+                    4, 5, 6, 4, 6, 7,
+                ].map(index => index + currentIndex))
+            }
+            // 拐角补面
+
+
+            // 侧边面
             indices.push(...[
                 3, 0, 7, 0, 4, 7,
                 0, 1, 4, 1, 5, 4,
@@ -79,7 +99,7 @@
     camera.position.set( 0, 100, 100 );
     camera.lookAt( 0, 0, 0 );
     const amlight = new THREE.AmbientLight(0x777777)
-    const light = new THREE.DirectionalLight(0xffffff)
+    const light = new THREE.DirectionalLight(0xcccccc, 0.5)
     light.position.set(0, 300, 300)
 
     const scene = new THREE.Scene();
@@ -91,12 +111,22 @@
 
     const line = [
         new THREE.Vector3(-10, 0, -10),
-        new THREE.Vector3(0, 0, 0),
-        // new THREE.Vector3(10, 0, -10),
+        // new THREE.Vector3(5, 8, -4),
+        new THREE.Vector3(10, 0, -10),
+
+        new THREE.Vector3(10, 0, -10),
+        new THREE.Vector3(10, 0, 10),
+
+        new THREE.Vector3(10, 0, 10),
+        new THREE.Vector3(-10, 0, 10),
+
+        new THREE.Vector3(-10, 0, 10),
+        new THREE.Vector3(-10, 0, -10),
     ]
     const box = lineToGeometry(line)
     // const box = new THREE.BoxGeometry(10, 10, 10)
-    const mesh = new THREE.Mesh(box, new THREE.MeshPhongMaterial({ color: 0xff0000, side: THREE.DoubleSide }))
+    const mesh = new THREE.Mesh(box, new THREE.MeshLambertMaterial({ color: 0xBF3333, side: THREE.FrontSide }))
+    // const mesh = new THREE.Mesh(box, new THREE.MeshPhongMaterial({ color: 0xff0000, side: THREE.DoubleSide }))
     scene.add(mesh)
 
     function render() {
