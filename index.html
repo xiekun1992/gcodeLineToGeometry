@@ -12,6 +12,7 @@
     </style>
 </head>
 <body>
+    <script src="./data.js"></script>
     <script src="./three.min.js"></script>
     <script src="./OrbitControls.js"></script>
     <script>
@@ -19,20 +20,20 @@
         if (line.length < 2) {
             return
         }
-        const yUp = new THREE.Vector3(0, 1, 0), yDown = new THREE.Vector3(0, -1, 0)
+        const yUp = new THREE.Vector3(0, 0, 1), yDown = new THREE.Vector3(0, 0, -1)
         const vertices = [], indices = []
-        const layerHeight = 3;
-        const lineWidth = 4;
+        const layerHeight = 0.6;
+        const lineWidth = 0.6;
         
         let currentIndex = 0
-        for (let i = 0; i < line.length; i += 2) {
+        for (let i = 0; i < line.length - 1; i++) {
             const pointStart = line[i]
             const pointEnd = line[i + 1]
             const lineSegmentVector = new THREE.Vector3().subVectors(pointEnd, pointStart)
 
             // point start expanded 4 points
-            const down = new THREE.Vector3(pointStart.x, pointStart.y - layerHeight / 2, pointStart.z)
-            const up = new THREE.Vector3(pointStart.x, pointStart.y + layerHeight / 2, pointStart.z)
+            const down = new THREE.Vector3(pointStart.x, pointStart.y, pointStart.z - layerHeight / 2)
+            const up = new THREE.Vector3(pointStart.x, pointStart.y, pointStart.z + layerHeight / 2)
             const leftN = new THREE.Vector3().crossVectors(yUp, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
             const left = new THREE.Vector3(leftN.x + pointStart.x, leftN.y + pointStart.y, leftN.z + pointStart.z)
             const rightN = new THREE.Vector3().crossVectors(yDown, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
@@ -45,8 +46,8 @@
             vertices.push(...left.toArray())
 
             // point end expanded 4 points
-            const down1 = new THREE.Vector3(pointEnd.x, pointEnd.y - layerHeight / 2, pointEnd.z)
-            const up1 = new THREE.Vector3(pointEnd.x, pointEnd.y + layerHeight / 2, pointEnd.z)
+            const down1 = new THREE.Vector3(pointEnd.x, pointEnd.y, pointEnd.z - layerHeight / 2)
+            const up1 = new THREE.Vector3(pointEnd.x, pointEnd.y, pointEnd.z + layerHeight / 2)
             // const left1 = new THREE.Vector3().crossVectors(up1, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
             // const right1 = new THREE.Vector3().crossVectors(down1, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
             const left1N = new THREE.Vector3().crossVectors(yUp, lineSegmentVector).normalize().multiplyScalar(lineWidth / 2)
@@ -64,14 +65,14 @@
                 indices.push(...[
                     0, 2, 1, 0, 3, 2,
                 ].map(index => index + currentIndex))
-            } else if (i + 1 === line.length - 1) {
+            }
+            if (i + 1 === line.length - 1) {
                 indices.push(...[
                     4, 5, 6, 4, 6, 7,
                 ].map(index => index + currentIndex))
             }
-            // 拐角补面
-
-
+            
+            
             // 侧边面
             indices.push(...[
                 3, 0, 7, 0, 4, 7,
@@ -79,7 +80,33 @@
                 1, 2, 5, 2, 6, 5,
                 2, 3, 6, 3, 7, 6
             ].map(index => index + currentIndex))
+            
+            currentIndex += 8
+        }
+        
+        // 拐角补面
+        currentIndex = 4
+        for (let i = 1; i < line.length - 1; i++) {
+            const pointStart = line[i- 1]
+            const pointCenter = line[i]
+            const pointEnd = line[i + 1]
 
+            const sc = new THREE.Vector3().subVectors(pointStart, pointCenter)
+            const ec = new THREE.Vector3().subVectors(pointEnd, pointCenter)
+
+            const normal = new THREE.Vector3().crossVectors(sc, ec)
+            console.log('angle', normal, sc, ec, normal.angleTo(yUp))
+            if (normal.angleTo(yUp) > Math.PI / 2) {
+                indices.push(...[
+                    0, 1, 5, 2, 5, 1
+                ].map(index => index + currentIndex))
+            } else if (normal.angleTo(yUp) < Math.PI / 2) {
+                indices.push(...[
+                    0, 7, 3, 2, 3, 7
+                ].map(index => index + currentIndex))
+            } else {
+                console.log('90')
+            }
             currentIndex += 8
         }
         const geometry = new THREE.BufferGeometry();
@@ -96,11 +123,12 @@
     document.body.appendChild( renderer.domElement );
 
     const camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 0.1, 5000 );
-    camera.position.set( 0, 100, 100 );
+    camera.position.set( 0, 0, 100 );
+    camera.up.set(0, 0, 1)
     camera.lookAt( 0, 0, 0 );
     const amlight = new THREE.AmbientLight(0x777777)
     const light = new THREE.DirectionalLight(0xcccccc, 0.5)
-    light.position.set(0, 300, 300)
+    light.position.set(300, 300, 300)
 
     const scene = new THREE.Scene();
     scene.add(light)
@@ -109,21 +137,32 @@
     const controls = new THREE.OrbitControls( camera, renderer.domElement );
     controls.target.set( 0, 1, 0 );
 
-    const line = [
-        new THREE.Vector3(-10, 0, -10),
-        // new THREE.Vector3(5, 8, -4),
-        new THREE.Vector3(10, 0, -10),
-
-        new THREE.Vector3(10, 0, -10),
-        new THREE.Vector3(10, 0, 10),
-
-        new THREE.Vector3(10, 0, 10),
-        new THREE.Vector3(-10, 0, 10),
-
-        new THREE.Vector3(-10, 0, 10),
-        new THREE.Vector3(-10, 0, -10),
-    ]
-    const box = lineToGeometry(line)
+    // const line = [
+    //     new THREE.Vector3(-10, 10, 0),
+    //     new THREE.Vector3(0, 5, 0),
+    //     new THREE.Vector3(10, -20, 0),
+    //     new THREE.Vector3(10, 10, 0),
+    //     // new THREE.Vector3(-10, 0, -10),
+    // ]
+    const line = []
+    for (let i = 0; i < data.length; i += 3) {
+        const point = new THREE.Vector3(data[i], data[i + 1], data[i + 2])
+        line.push(point)
+        if (line.length > 10) {
+            // break
+        }
+    }
+    const finalLine = []
+    let currentPoint = line[0]
+    finalLine.push(currentPoint)
+    for (let i = 1; i < line.length; i++) {
+        if (!currentPoint.equals(line[i])) {
+            finalLine.push(line[i])
+            currentPoint = line[i]
+        }
+    }
+    console.log(finalLine)
+    const box = lineToGeometry(finalLine)
     // const box = new THREE.BoxGeometry(10, 10, 10)
     const mesh = new THREE.Mesh(box, new THREE.MeshLambertMaterial({ color: 0xBF3333, side: THREE.FrontSide }))
     // const mesh = new THREE.Mesh(box, new THREE.MeshPhongMaterial({ color: 0xff0000, side: THREE.DoubleSide }))
